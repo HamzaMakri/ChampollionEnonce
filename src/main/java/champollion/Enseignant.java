@@ -24,7 +24,7 @@ public class Enseignant extends Personne {
         // TODO: Implémenter cette méthode
         int somme = 0;
         for (ServicePrevu s : servicesPrevusList){
-            somme = (int) Math.round(somme + (s.getVolumeTP()*0.75) + s.getVolumeCM() + s.getVolumeTD());
+            somme = (int) Math.round(somme + (s.getVolumeTP()*0.75) + (s.getVolumeCM()*1.5) + s.getVolumeTD());
         }
         return somme;
     }
@@ -48,6 +48,7 @@ public class Enseignant extends Personne {
             }
         }
         return somme;
+
     }
 
     /**
@@ -63,53 +64,65 @@ public class Enseignant extends Personne {
         servicesPrevusList.add(new ServicePrevu(volumeCM,volumeTD,volumeTP,ue,this));
     }
 
-
+    public void ajouteIntervention(Intervention inter) throws Exception {
+        if(inter.getIntervenant() == this){
+            interventionsPlanifieesList.add(inter);
+        }else{
+            throw new Exception("Cette intervention ne correspond pas à cet enseignant");
+        }
+    }
 
     public boolean enSousService() throws Exception {
         int nbHeuresPrevues = heuresPrevues();
-        double nbHeuresRealisees = 0;
+        double sumNbHeuresRealisees = sommeInterventionsPlanifiees();
+
+        return (nbHeuresPrevues - sumNbHeuresRealisees) > 0;
+    }
+
+    /**
+     * Calcul, en heure TD, la somme des durées des interventions planifiées, non annulées
+     */
+    public double sommeInterventionsPlanifiees() throws Exception {
+        double sumNbHeuresRealisees = 0;
 
         for (Intervention inter : interventionsPlanifieesList){
-            nbHeuresRealisees = nbHeuresRealisees + inter.dureeEquivalentTD();
+            if (!inter.isAnnulee()) sumNbHeuresRealisees = sumNbHeuresRealisees + inter.dureeEquivalentTD();
         }
-
-        if( nbHeuresPrevues-nbHeuresRealisees > 0){
-            return true;
-        }else{
-            return false;
-        }
-
+        return Math.round(sumNbHeuresRealisees);
     }
 
-    public void ajouteIntervention(Intervention inter){
-        interventionsPlanifieesList.add(inter);
-    }
 
     public int resteAPlanifier(UE ue, TypeIntervention type) throws Exception {
         double sommeInter = 0;
+        if (enSousService()){
 
-        for(Intervention inter : interventionsPlanifieesList){
-            if (inter.getType().equals(type) && inter.getMatiere().equals(ue)){
-                sommeInter = sommeInter + inter.dureeEquivalentTD();
-            }
-        }
-
-        for (ServicePrevu servicePrevu : servicesPrevusList) {
-            if (servicePrevu.getUe().equals(ue)) {
-                switch (type) {
-                    case TP:
-                        sommeInter = sommeInter - servicePrevu.getVolumeTP();
-                        break;
-                    case TD:
-                        sommeInter = sommeInter - servicePrevu.getVolumeTD();
-                        break;
-                    case CM:
-                        sommeInter = sommeInter - servicePrevu.getVolumeCM();
-                        break;
+            for(Intervention inter : interventionsPlanifieesList){
+                if (inter.getType().equals(type) && inter.getMatiere().equals(ue)){
+                    sommeInter = sommeInter + inter.dureeEquivalentTD();
                 }
             }
+
+            double sommeServ = 0;
+
+            for (ServicePrevu servicePrevu : servicesPrevusList) {
+                if (servicePrevu.getUe().equals(ue)) {
+                    switch (type) {
+                        case TP:
+                            sommeServ += servicePrevu.getVolumeTP()*0.75;
+                            break;
+                        case TD:
+                            sommeServ += servicePrevu.getVolumeTD();
+                            break;
+                        case CM:
+                            sommeServ += servicePrevu.getVolumeCM()*1.5;
+                            break;
+                    }
+                }
+            }
+
+            sommeInter -= Math.round(sommeServ);
         }
-        return (int) Math.round(sommeInter);
+        return (int) Math.abs(Math.round(sommeInter));
     }
 
     public ArrayList<ServicePrevu> getServicesPrevusList() {
